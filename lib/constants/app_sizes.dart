@@ -1,0 +1,142 @@
+class AppSizes {
+  static const double designWidth = 393.0;
+  static const double designHeight = 852.0;
+
+  static const double homeButtonSpacing = 12.0;
+  static const double homeScreenPadding = 16.0;
+  static const double homeVerticalSpacing = 12.0;
+  static const double homeLogoWidth = 240.0;
+
+  // Design baseline sizes; adjust to match final asset proportions if needed.
+  static const double loginButtonWidth = 150.0;
+  static const double loginButtonHeight = 43.0;
+  static const double loginButtonTextSize = 26.0;
+  static const double rankingButtonWidth = 320.0;
+  static const double rankingButtonHeight = 90.0;
+  static const double leftBigButtonWidth = 151.0;
+  static const double leftBigButtonHeight = 276.0;
+  static const double smallButtonWidth = 151.0;
+  static const double smallButtonHeight = 127.0;
+
+  static const double loginInputWidth = 220.0;
+  static const double loginInputHeight = 35.0;
+  static const double loginInputRadius = 10.0;
+  static const double loginInputHintTextSize = 20.0;
+  static const double loginActionButtonWidth = 220.0;
+  static const double loginActionButtonHeight = 50.0;
+
+  static const double loginPanelWidth = 320.0;
+  static const double loginPanelHeight = 540.0;
+  static const double loginPanelBorderWidth = 3.0;
+  static const double loginLogoWidth = 240.0;
+  static const double loginLogoSpacing = 55.0;
+  static const double loginInputSpacing = 15.0;
+  static const double loginButtonSpacing = 45.0;
+
+  static const double rankingItemWidth = 320.0;
+  static const double rankingItemHeight = 50.0;
+  static const double rankingItemBorderWidth = 3.0;
+  static const double rankingItemShadowBlur = 5.0;
+  static const double rankingItemShadowSpread = 1.0;
+  static const double rankingItemTextSize = 20.0;
+  static const double rankingItemNameSpacing = 15.0;
+  static const double rankingItemCandySpacing = 10.0;
+  static const double rankingItemHorizontalPadding = 12.0;
+  static const double rankingItemIconSize = 24.0;
+  static const double rankingItemRadius = 10.0;
+
+  static const double rankingLogoWidth = 240.0;
+  static const double rankingHeaderSpacing = 12.0;
+  static const double rankingItemSpacing = 12.0;
+
+  static const int starGameInitialCount = 20;
+  static const double starGameStartTimeSec = 30.0;
+  static const double starGameAddTimeSec = 0.1;
+  static const double starGameStarDiameter = 60.0;
+  static const double starGameNumberTextSize = 20.0;
+  static const double starGameHudPadding = 16.0;
+  static const double starGameHudTextSize = 20.0;
+  static const double starGameHudSpacing = 12.0;
+  static const double starGameOverlayButtonWidth = 200.0;
+  static const double starGameOverlayButtonHeight = 48.0;
+  static const double starGameOverlaySpacing = 16.0;
+  static const double starGameOverlayTextSize = 18.0;
+  static const double starGameSpawnTopPadding = 90.0;
+  static const double starGameSpawnBottomPadding = 300.0;
+  static const double starGameSpawnSidePadding = 0.0;
+  static const double starGameTimerWidth = 233.0;
+  static const double starGameTimerHeight = 50.0;
+  static const double starGameTimerInsetLeft = 54.0;
+  static const double starGameTimerInsetRight = 20.0;
+  static const double starGameTimerInsetVertical = 15.0;
+  static const double starGameScoreInsetLeft = 10.0;
+  static const double starGameScoreInsetTop = 19.0;
+  static const double starGameScoreInsetBottom = 9.0;
+  static const double starGameScoreBoxWidth = 30.0;
+  static const double starGameScoreBoxHeight = 22.0;
+
+  static const double chewGameStartTimeSec = 20.0;
+  static const double chewGameAddTimeSec = 0.1;
+  static const int chewGameRowCount = 8;
+  static const double chewGameTopPadding = 120.0;
+  static const double chewGameBottomPadding = 170.0;
+  static const double chewGameSidePadding = 85.0;
+  static const double chewGameItemMinSize = 50.0;
+  static const double chewGameItemMaxSize = 170.0;
+  static const double chewGameRowTopFactor = 0.05;
+  static const double chewGameRowBottomFactor = 0.8;
+  static const double chewGameButtonSpacing = 12.0;
+  static const double chewGameHudPadding = 16.0;
+  static const double chewGameHudTextSize = 20.0;
+  static const double chewGameOverlayButtonWidth = 200.0;
+  static const double chewGameOverlayButtonHeight = 48.0;
+  static const double chewGameOverlaySpacing = 16.0;
+  static const double chewGameOverlayTextSize = 18.0;
+
+  static const double flappyGravity = 1200.0;
+  static const double flappyGameStartTimeSec = 20.0;
+  static const double flappyJumpImpulse = 420.0;
+  static const double flappyPillarWidth = 78.0;
+  static const double flappyPillarGap = 190.0;
+  static const double flappyPillarSpeed = 180.0;
+  static const double flappySpawnInterval = 1.6;
+  static const double flappyPillarMinHeight = 90.0;
+  static const double flappyPillarHitboxScale = 0.8;
+  static const double flappyTopPadding = 120.0;
+  static const double flappyBottomPadding = 40.0;
+  static const double flappyFloorPadding = 0.0;
+  static const double flappyPlayerSize = 52.0;
+  static const double flappyPlayerHitboxScale = 0.7;
+  static const double flappyPlayerStartX = 0.25;
+  static const double flappyPlayerStartY = 0.5;
+  static const double flappyHudPadding = 16.0;
+  static const double flappyHudTextSize = 20.0;
+  static const double flappyOverlayButtonWidth = 200.0;
+  static const double flappyOverlayButtonHeight = 48.0;
+  static const double flappyOverlaySpacing = 16.0;
+  static const double flappyOverlayTextSize = 18.0;
+
+  static const double rouletteWheelSize = 380.0;
+  static const double roulettePinWidth = 60.0;
+  static const double roulettePinHeight = 60.0;
+  static const double roulettePinScale = 2.5;
+  static const double roulettePinOverlap = 0.5;
+  static const double rouletteLogoWidth = 140.0;
+  static const double rouletteLogoTopPadding = 50.0;
+  static const double rouletteSpinButtonSize = 75.0;
+  static const double rouletteSpinButtonTextSize = 18.0;
+  static const double rouletteLabelRadius = 150.0;
+  static const double rouletteLabelTextSize = 20.0;
+  static const double rouletteLabelInset = 10.0;
+  static const double rouletteLabelAngleOffset = 0;
+  static const double rouletteResultWidth = 400.0;
+  static const double rouletteResultHeight = 260.0;
+  static const double rouletteResultTextSize = 22.0;
+  static const double rouletteResultButtonWidth = 120.0;
+  static const double rouletteResultButtonHeight = 40.0;
+  static const double rouletteResultSpacing = 12.0;
+  static const double rouletteSpinDurationSec = 3.5;
+  static const int rouletteSpinTurnsMin = 3;
+  static const int rouletteSpinTurnsMax = 5;
+  static const double rouletteWheelAngleOffset = 0.0;
+}
