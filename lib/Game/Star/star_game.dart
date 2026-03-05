@@ -1,11 +1,9 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 
 import '../../constants/app_assets.dart';
-import '../../constants/app_colors.dart';
 import '../../constants/app_sizes.dart';
 import 'star_component.dart';
 import 'star_hud.dart';

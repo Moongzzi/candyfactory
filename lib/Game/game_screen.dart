@@ -8,6 +8,7 @@ import 'Chew/chew_game.dart';
 import 'Roulette/roulette_screen.dart';
 import 'Star/star_game.dart';
 import 'Flappy/flappy_game.dart';
+import 'Up/up_game.dart';
 import 'game_type.dart';
 
 class GameScreen extends StatelessWidget {
@@ -55,6 +56,18 @@ class GameScreen extends StatelessWidget {
               'flappyStart': (context, _) => _FlappyStartOverlay(game: game),
               'flappyGameOver': (context, _) =>
                   _FlappyGameOverOverlay(game: game),
+            },
+          ),
+        );
+      case GameType.game5:
+        final game = UpGame();
+        return Scaffold(
+          body: GameWidget(
+            game: game,
+            initialActiveOverlays: const ['upStart'],
+            overlayBuilderMap: {
+              'upStart': (context, _) => _UpStartOverlay(game: game),
+              'upGameOver': (context, _) => _UpGameOverOverlay(game: game),
             },
           ),
         );
@@ -305,6 +318,96 @@ class _FlappyGameOverOverlay extends StatelessWidget {
     final buttonHeight = AppSizes.flappyOverlayButtonHeight * scale;
     final spacing = AppSizes.flappyOverlaySpacing * scale;
     final textSize = AppSizes.flappyOverlayTextSize * scale;
+
+    return Container(
+      color: AppColors.starGameOverlayScrim,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: buttonWidth,
+              height: buttonHeight,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false),
+                child: Text('홈으로', style: TextStyle(fontSize: textSize)),
+              ),
+            ),
+            SizedBox(height: spacing),
+            SizedBox(
+              width: buttonWidth,
+              height: buttonHeight,
+              child: ElevatedButton(
+                onPressed: game.restartGame,
+                child: Text('다시 하기', style: TextStyle(fontSize: textSize)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpStartOverlay extends StatelessWidget {
+  const _UpStartOverlay({required this.game});
+
+  final UpGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.of(context).size.width / AppSizes.designWidth;
+    final buttonWidth = AppSizes.upOverlayButtonWidth * scale;
+    final buttonHeight = AppSizes.upOverlayButtonHeight * scale;
+    final spacing = AppSizes.upOverlaySpacing * scale;
+    final textSize = AppSizes.upOverlayTextSize * scale;
+
+    return Container(
+      color: AppColors.starGameOverlayScrim,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: buttonWidth,
+              height: buttonHeight,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false),
+                child: Text('홈으로', style: TextStyle(fontSize: textSize)),
+              ),
+            ),
+            SizedBox(height: spacing),
+            SizedBox(
+              width: buttonWidth,
+              height: buttonHeight,
+              child: ElevatedButton(
+                onPressed: game.startGame,
+                child: Text('게임 시작', style: TextStyle(fontSize: textSize)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpGameOverOverlay extends StatelessWidget {
+  const _UpGameOverOverlay({required this.game});
+
+  final UpGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.of(context).size.width / AppSizes.designWidth;
+    final buttonWidth = AppSizes.upOverlayButtonWidth * scale;
+    final buttonHeight = AppSizes.upOverlayButtonHeight * scale;
+    final spacing = AppSizes.upOverlaySpacing * scale;
+    final textSize = AppSizes.upOverlayTextSize * scale;
 
     return Container(
       color: AppColors.starGameOverlayScrim,

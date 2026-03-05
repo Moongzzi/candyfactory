@@ -37,6 +37,10 @@ class AppAssets {
       'assets/images/Game_Timer_Background_Chew.png';
   static const String gameTimerBackgroundChewFlame =
       'Game_Timer_Background_Chew.png';
+  static const String gameTimerBackgroundUp =
+      'assets/images/Game_Timer_Background_Up.png';
+  static const String gameTimerBackgroundUpFlame =
+      'Game_Timer_Background_Up.png';
   static const String chewApple = 'assets/images/Game_Chew_Apple.png';
   static const String chewBerry = 'assets/images/Game_Chew_Berry.png';
   static const String chewGrape = 'assets/images/Game_Chew_Grape.png';
@@ -57,4 +61,16 @@ class AppAssets {
   static const String chewButtonBerryFlame = 'Game_Chew_Button_Berry.png';
   static const String chewButtonGrapeFlame = 'Game_Chew_Button_Grape.png';
   static const String chewButtonPeachFlame = 'Game_Chew_Button_Peach.png';
+  static const String upCharacter = 'assets/images/Game_Up_Character.png';
+  static const String upCharacterFlame = 'Game_Up_Character.png';
+    static const String upStep1 = 'assets/images/Game_Up_Step1.png';
+    static const String upStep2 = 'assets/images/Game_Up_Step2.png';
+    static const String upStep3 = 'assets/images/Game_Up_Step3.png';
+    static const String upStep4 = 'assets/images/Game_Up_Step4.png';
+  static const String upStepBreak = 'assets/images/Game_Up_Step_Break.png';
+    static const String upStep1Flame = 'Game_Up_Step1.png';
+    static const String upStep2Flame = 'Game_Up_Step2.png';
+    static const String upStep3Flame = 'Game_Up_Step3.png';
+    static const String upStep4Flame = 'Game_Up_Step4.png';
+  static const String upStepBreakFlame = 'Game_Up_Step_Break.png';
 }

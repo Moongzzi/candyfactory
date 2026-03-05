@@ -56,4 +56,11 @@ class AppColors {
   static const Color starGameTimerFill = Color(0xFF000000);
   static const Color chewGameBackgroundTint = Color(0x99FFFFFF);
   static const Color chewGameOverlayScrim = Color(0xAAFFFFFF);
+
+  static const Color upSkyTop = Color(0xFF5BB8FF);
+  static const Color upSkyMid = Color(0xFF88D2FF);
+  static const Color upSkyBottom = Color(0xFFD2F1FF);
+  static const Color upSpaceTop = Color(0xFF050B1E);
+  static const Color upSpaceMid = Color(0xFF101C42);
+  static const Color upSpaceBottom = Color(0xFF223270);
 }
