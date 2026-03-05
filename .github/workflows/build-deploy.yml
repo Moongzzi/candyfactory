@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CUSTOM_DOMAIN: ${{ vars.PAGES_CUSTOM_DOMAIN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +39,9 @@ jobs:
         shell: bash
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          if [[ "$REPO_NAME" == *.github.io ]]; then
+          if [[ -n "$CUSTOM_DOMAIN" ]]; then
+            BASE_HREF="/"
+          elif [[ "$REPO_NAME" == *.github.io ]]; then
             BASE_HREF="/"
           else
             BASE_HREF="/$REPO_NAME/"
@@ -45,6 +49,11 @@ jobs:
           echo "Using base href: $BASE_HREF"
           flutter build web --release --base-href "$BASE_HREF"
           touch build/web/.nojekyll
+
+      - name: Write CNAME (custom domain)
+        if: ${{ vars.PAGES_CUSTOM_DOMAIN != '' }}
+        shell: bash
+        run: echo "$CUSTOM_DOMAIN" > build/web/CNAME
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
