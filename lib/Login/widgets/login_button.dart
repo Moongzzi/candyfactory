@@ -6,11 +6,20 @@ import '../../constants/app_sizes.dart';
 
 /// Login action button widget.
 class LoginActionButton extends StatelessWidget {
-  const LoginActionButton({super.key, this.width, this.height, this.scale});
+  const LoginActionButton({
+    super.key,
+    this.width,
+    this.height,
+    this.scale,
+    this.onPressed,
+    this.isLoading = false,
+  });
 
   final double? width;
   final double? height;
   final double? scale;
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +37,7 @@ class LoginActionButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            // TODO: Trigger login API request.
-          },
+          onTap: isLoading ? null : onPressed,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -40,14 +47,25 @@ class LoginActionButton extends StatelessWidget {
                   fit: BoxFit.fill,
                 ),
               ),
-              Text(
-                'Log In',
-                style: TextStyle(
-                  color: AppColors.softText,
-                  fontSize: textSize,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              isLoading
+                  ? SizedBox(
+                      width: 20 * effectiveScale,
+                      height: 20 * effectiveScale,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.softText,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      'Log In',
+                      style: TextStyle(
+                        color: AppColors.softText,
+                        fontSize: textSize,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ],
           ),
         ),

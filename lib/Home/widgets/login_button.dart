@@ -7,11 +7,18 @@ import '../../constants/app_sizes.dart';
 
 /// Home login button widget.
 class LoginButton extends StatelessWidget {
-  const LoginButton({super.key, this.width, this.scale, this.onPressed});
+  const LoginButton({
+    super.key,
+    this.width,
+    this.scale,
+    this.onPressed,
+    this.label = 'Log In',
+  });
 
   final double? width;
   final double? scale;
   final VoidCallback? onPressed;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +47,7 @@ class LoginButton extends StatelessWidget {
                 ),
               ),
               Text(
-                'Log In',
+                label,
                 style: TextStyle(
                   color: AppColors.softText,
                   fontSize: textSize,

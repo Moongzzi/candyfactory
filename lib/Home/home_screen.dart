@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../Common/session_store.dart';
 import '../Game/game_type.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_routes.dart';
@@ -51,7 +52,49 @@ class HomeScreen extends StatelessWidget {
                       children: [
                         LogoButton(width: logoWidth),
                         SizedBox(height: spacing),
-                        LoginButton(width: loginWidth, scale: scale),
+                        ValueListenableBuilder<String?>(
+                          valueListenable: SessionStore.nickname,
+                          builder: (context, nickname, _) {
+                            return LoginButton(
+                              width: loginWidth,
+                              scale: scale,
+                              label: nickname ?? 'Log In',
+                              onPressed: () async {
+                                if (nickname == null) {
+                                  Navigator.of(
+                                    context,
+                                  ).pushNamed(AppRoutes.login);
+                                  return;
+                                }
+
+                                final shouldLogout = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) {
+                                    return AlertDialog(
+                                      content: const Text('로그아웃 하시겠습니까?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(false),
+                                          child: const Text('취소'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(true),
+                                          child: const Text('확인'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+
+                                if (shouldLogout == true) {
+                                  SessionStore.logout();
+                                }
+                              },
+                            );
+                          },
+                        ),
                         SizedBox(height: spacing),
                         SizedBox(
                           width: contentWidth - (padding * 2),
