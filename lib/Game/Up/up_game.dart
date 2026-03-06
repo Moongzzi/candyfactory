@@ -10,6 +10,11 @@ import '../../constants/app_colors.dart';
 import '../../constants/app_sizes.dart';
 
 class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
+  UpGame({this.onGameStarted, this.onGameFinished});
+
+  final VoidCallback? onGameStarted;
+  final ValueChanged<int>? onGameFinished;
+
   final _random = math.Random();
   bool _componentsReady = false;
 
@@ -42,6 +47,7 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
   double _nextSpawnY = 0.0;
 
   bool get isRunning => _isStarted && !_isGameOver;
+  int get score => _score;
 
   @override
   Future<void> onLoad() async {
@@ -172,12 +178,14 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     overlays.remove('upGameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void restartGame() {
     overlays.remove('upGameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void _resetGame() {
@@ -445,6 +453,7 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     _isGameOver = true;
     _isStarted = false;
     overlays.add('upGameOver');
+    onGameFinished?.call(_score);
   }
 
   double _randomX(double platformWidth) {

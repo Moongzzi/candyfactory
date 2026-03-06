@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
@@ -9,10 +11,68 @@ import 'Roulette/roulette_screen.dart';
 import 'Star/star_game.dart';
 import 'Flappy/flappy_game.dart';
 import 'Up/up_game.dart';
+import 'game_play_api_service.dart';
 import 'game_type.dart';
 
-class GameScreen extends StatelessWidget {
+class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
+
+  @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  final GamePlayApiService _gamePlayApiService = GamePlayApiService();
+  final Map<GameType, String> _activeLogIds = <GameType, String>{};
+  final Map<GameType, bool> _roundActive = <GameType, bool>{};
+
+  String _gameCode(GameType gameType) {
+    switch (gameType) {
+      case GameType.game2:
+        return 'game2';
+      case GameType.game3:
+        return 'game3';
+      case GameType.game4:
+        return 'game4';
+      case GameType.game5:
+        return 'game5';
+      default:
+        return gameType.name;
+    }
+  }
+
+  void _onGameStart(GameType gameType) {
+    _roundActive[gameType] = true;
+    _activeLogIds.remove(gameType);
+    unawaited(_sendGameStart(gameType));
+  }
+
+  void _onGameFinish(GameType gameType, int score) {
+    _roundActive[gameType] = false;
+    unawaited(_sendGameFinish(gameType, score));
+  }
+
+  Future<void> _sendGameStart(GameType gameType) async {
+    final logId = await _gamePlayApiService.startGame(
+      gameCode: _gameCode(gameType),
+    );
+    if (logId == null || logId.isEmpty) {
+      return;
+    }
+    if (_roundActive[gameType] != true) {
+      return;
+    }
+    _activeLogIds[gameType] = logId;
+  }
+
+  Future<void> _sendGameFinish(GameType gameType, int score) async {
+    final logId = _activeLogIds.remove(gameType);
+    await _gamePlayApiService.finishGame(
+      gameCode: _gameCode(gameType),
+      score: score,
+      logId: logId,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +83,10 @@ class GameScreen extends StatelessWidget {
       case GameType.game1:
         return const RouletteScreen();
       case GameType.game2:
-        final game = StarGame();
+        final game = StarGame(
+          onGameStarted: () => _onGameStart(GameType.game2),
+          onGameFinished: (score) => _onGameFinish(GameType.game2, score),
+        );
         return Scaffold(
           body: GameWidget(
             game: game,
@@ -35,7 +98,10 @@ class GameScreen extends StatelessWidget {
           ),
         );
       case GameType.game3:
-        final game = ChewGame();
+        final game = ChewGame(
+          onGameStarted: () => _onGameStart(GameType.game3),
+          onGameFinished: (score) => _onGameFinish(GameType.game3, score),
+        );
         return Scaffold(
           body: GameWidget(
             game: game,
@@ -47,7 +113,10 @@ class GameScreen extends StatelessWidget {
           ),
         );
       case GameType.game4:
-        final game = FlappyGame();
+        final game = FlappyGame(
+          onGameStarted: () => _onGameStart(GameType.game4),
+          onGameFinished: (score) => _onGameFinish(GameType.game4, score),
+        );
         return Scaffold(
           body: GameWidget(
             game: game,
@@ -60,7 +129,10 @@ class GameScreen extends StatelessWidget {
           ),
         );
       case GameType.game5:
-        final game = UpGame();
+        final game = UpGame(
+          onGameStarted: () => _onGameStart(GameType.game5),
+          onGameFinished: (score) => _onGameFinish(GameType.game5, score),
+        );
         return Scaffold(
           body: GameWidget(
             game: game,
@@ -69,12 +141,6 @@ class GameScreen extends StatelessWidget {
               'upStart': (context, _) => _UpStartOverlay(game: game),
               'upGameOver': (context, _) => _UpGameOverOverlay(game: game),
             },
-          ),
-        );
-      default:
-        return Scaffold(
-          body: Center(
-            child: Text('Game: ${gameType.name}', textAlign: TextAlign.center),
           ),
         );
     }

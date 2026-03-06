@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../constants/app_assets.dart';
 import '../../constants/app_sizes.dart';
@@ -11,6 +12,11 @@ import 'flappy_pillar.dart';
 import 'flappy_player.dart';
 
 class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
+  FlappyGame({this.onGameStarted, this.onGameFinished});
+
+  final VoidCallback? onGameStarted;
+  final ValueChanged<int>? onGameFinished;
+
   final _random = math.Random();
   SpriteComponent? _background;
   late final FlappyHud _hud;
@@ -36,6 +42,8 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
   double _playerStartX = 0.0;
   double _playerStartY = 0.0;
   double _pillarMinHeight = 0.0;
+
+  int get score => _score;
 
   bool get isRunning => _isStarted && !_isGameOver;
 
@@ -189,12 +197,14 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     overlays.remove('flappyGameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void restartGame() {
     overlays.remove('flappyGameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void _resetGame() {
@@ -218,6 +228,7 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     _isGameOver = true;
     _isStarted = false;
     overlays.add('flappyGameOver');
+    onGameFinished?.call(_score);
   }
 
   void _spawnPillarPair() {

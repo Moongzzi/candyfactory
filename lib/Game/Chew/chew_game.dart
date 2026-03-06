@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../constants/app_assets.dart';
 import '../../constants/app_colors.dart';
@@ -14,6 +15,11 @@ import 'chew_types.dart';
 
 /// Chew game implementation.
 class ChewGame extends FlameGame {
+  ChewGame({this.onGameStarted, this.onGameFinished});
+
+  final VoidCallback? onGameStarted;
+  final ValueChanged<int>? onGameFinished;
+
   final _random = math.Random();
   final List<ChewItemComponent> _items = <ChewItemComponent>[];
   final Map<ChewType, ChewDirection> _directionMap =
@@ -28,6 +34,8 @@ class ChewGame extends FlameGame {
   int _score = 0;
   bool _isStarted = false;
   bool _isGameOver = false;
+
+  int get score => _score;
 
   @override
   Future<void> onLoad() async {
@@ -262,6 +270,7 @@ class ChewGame extends FlameGame {
     _isGameOver = true;
     _isStarted = false;
     overlays.add('chewGameOver');
+    onGameFinished?.call(_score);
   }
 
   void startGame() {
@@ -269,12 +278,14 @@ class ChewGame extends FlameGame {
     overlays.remove('chewGameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void restartGame() {
     overlays.remove('chewGameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void _resetGame() {

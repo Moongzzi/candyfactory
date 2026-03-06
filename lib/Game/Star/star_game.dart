@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../constants/app_assets.dart';
 import '../../constants/app_sizes.dart';
@@ -10,7 +11,10 @@ import 'star_hud.dart';
 
 /// Star collecting game using Flame.
 class StarGame extends FlameGame {
-  StarGame() : super();
+  StarGame({this.onGameStarted, this.onGameFinished}) : super();
+
+  final VoidCallback? onGameStarted;
+  final ValueChanged<int>? onGameFinished;
 
   final _random = math.Random();
   late final StarHud _hud;
@@ -22,6 +26,8 @@ class StarGame extends FlameGame {
   double _timeLeft = AppSizes.starGameStartTimeSec;
   bool _isStarted = false;
   bool _isGameOver = false;
+
+  int get score => _score;
 
   @override
   Future<void> onLoad() async {
@@ -145,6 +151,7 @@ class StarGame extends FlameGame {
     _isGameOver = true;
     _isStarted = false;
     overlays.add('gameOver');
+    onGameFinished?.call(_score);
   }
 
   void startGame() {
@@ -152,12 +159,14 @@ class StarGame extends FlameGame {
     overlays.remove('gameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void restartGame() {
     overlays.remove('gameOver');
     _resetGame();
     _isStarted = true;
+    onGameStarted?.call();
   }
 
   void _resetGame() {
