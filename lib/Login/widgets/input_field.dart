@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 import '../../constants/app_colors.dart';
 import '../../constants/app_sizes.dart';
@@ -28,8 +29,13 @@ class LoginInputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final effectiveScale = scale ?? (screenWidth / AppSizes.designWidth);
+    final screen = MediaQuery.of(context).size;
+    final effectiveScale =
+        scale ??
+        math.min(
+          screen.width / AppSizes.designWidth,
+          screen.height / AppSizes.designHeight,
+        );
     final targetWidth = width ?? (AppSizes.loginInputWidth * effectiveScale);
     final targetHeight = height ?? (AppSizes.loginInputHeight * effectiveScale);
     final radius = AppSizes.loginInputRadius * effectiveScale;
@@ -43,6 +49,10 @@ class LoginInputField extends StatelessWidget {
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         obscureText: obscureText,
+        style: TextStyle(
+          color: AppColors.softText,
+          fontSize: hintSize,
+        ),
         decoration: InputDecoration(
           isDense: true,
           filled: true,

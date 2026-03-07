@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 import '../../constants/app_assets.dart';
 import '../../constants/app_colors.dart';
@@ -23,8 +24,13 @@ class LoginActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final effectiveScale = scale ?? (screenWidth / AppSizes.designWidth);
+    final screen = MediaQuery.of(context).size;
+    final effectiveScale =
+        scale ??
+        math.min(
+          screen.width / AppSizes.designWidth,
+          screen.height / AppSizes.designHeight,
+        );
     final targetWidth =
         width ?? (AppSizes.loginActionButtonWidth * effectiveScale);
     final targetHeight =
