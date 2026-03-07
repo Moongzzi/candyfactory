@@ -14,6 +14,35 @@ import 'widgets/login_button.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  Future<void> _requireLoginAndNavigate(
+    BuildContext context, {
+    required VoidCallback onLoggedIn,
+  }) async {
+    if (SessionStore.nickname.value != null) {
+      onLoggedIn();
+      return;
+    }
+
+    final shouldGoLogin = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: const Text('로그인이 필요합니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldGoLogin == true && context.mounted) {
+      Navigator.of(context).pushNamed(AppRoutes.login);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,32 +128,47 @@ class HomeScreen extends StatelessWidget {
                         SizedBox(
                           width: contentWidth - (padding * 2),
                           child: HomeButtonGroup(
-                            // TODO: Connect navigation callbacks for each button.
-                            onRanking: () => Navigator.of(
+                            onRanking: () => _requireLoginAndNavigate(
                               context,
-                            ).pushNamed(AppRoutes.ranking),
-                            onBigLeft: () => Navigator.of(context).pushNamed(
-                              AppRoutes.game,
-                              arguments: GameType.game1,
+                              onLoggedIn: () => Navigator.of(
+                                context,
+                              ).pushNamed(AppRoutes.ranking),
                             ),
-                            onRightTop: () => Navigator.of(context).pushNamed(
-                              AppRoutes.game,
-                              arguments: GameType.game2,
+                            onBigLeft: () => _requireLoginAndNavigate(
+                              context,
+                              onLoggedIn: () => Navigator.of(context).pushNamed(
+                                AppRoutes.game,
+                                arguments: GameType.game1,
+                              ),
                             ),
-                            onRightBottom: () =>
-                                Navigator.of(context).pushNamed(
-                                  AppRoutes.game,
-                                  arguments: GameType.game3,
-                                ),
-                            onBottomLeft: () => Navigator.of(context).pushNamed(
-                              AppRoutes.game,
-                              arguments: GameType.game4,
+                            onRightTop: () => _requireLoginAndNavigate(
+                              context,
+                              onLoggedIn: () => Navigator.of(context).pushNamed(
+                                AppRoutes.game,
+                                arguments: GameType.game2,
+                              ),
                             ),
-                            onBottomRight: () =>
-                                Navigator.of(context).pushNamed(
-                                  AppRoutes.game,
-                                  arguments: GameType.game5,
-                                ),
+                            onRightBottom: () => _requireLoginAndNavigate(
+                              context,
+                              onLoggedIn: () => Navigator.of(context).pushNamed(
+                                AppRoutes.game,
+                                arguments: GameType.game3,
+                              ),
+                            ),
+                            onBottomLeft: () => _requireLoginAndNavigate(
+                              context,
+                              onLoggedIn: () => Navigator.of(context).pushNamed(
+                                AppRoutes.game,
+                                arguments: GameType.game4,
+                              ),
+                            ),
+                            onBottomRight: () => _requireLoginAndNavigate(
+                              context,
+                              onLoggedIn: () => Navigator.of(context).pushNamed(
+                                AppRoutes.game,
+                                arguments: GameType.game5,
+                              ),
+                            ),
                           ),
                         ),
                       ],

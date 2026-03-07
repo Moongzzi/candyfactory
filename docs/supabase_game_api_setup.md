@@ -187,3 +187,96 @@ select public.finish_game(
 정상 동작 시:
 - `game_log`에 시작/종료 로그 기록
 - `user_profile.total_candies`가 `p_candies_delta`만큼 증가
+
+## 룰렛(game1) 포인트 반영 RPC 세팅
+
+룰렛은 `-10` 비용 차감 후 결과 점수를 다시 반영해야 하므로,
+음수/양수 모두 허용하는 별도 RPC(`apply_candies_delta`)를 사용합니다.
+
+### 1) apply_candies_delta RPC 생성
+
+```sql
+create or replace function public.apply_candies_delta(
+  p_game_code text,
+  p_candies_delta integer,
+  p_meta jsonb default '{}'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nickname text;
+  v_user_id uuid;
+  v_delta integer;
+begin
+  v_nickname := nullif(trim(coalesce(p_meta->>'nickname', '')), '');
+  v_delta := coalesce(p_candies_delta, 0);
+
+  if v_nickname is null then
+    raise exception 'nickname is required in p_meta';
+  end if;
+
+  select id into v_user_id
+  from public.user_profile
+  where nickname = v_nickname
+  limit 1;
+
+  if v_user_id is null then
+    raise exception 'user_profile not found for nickname: %', v_nickname;
+  end if;
+
+  update public.user_profile
+  set
+    total_candies = coalesce(total_candies, 0) + v_delta,
+    updated_at = now()
+  where id = v_user_id;
+
+  insert into public.game_log (
+    user_id,
+    game_code,
+    started_at,
+    ended_at,
+    candies_delta,
+    meta
+  ) values (
+    v_user_id,
+    coalesce(nullif(trim(p_game_code), ''), 'game1'),
+    now(),
+    now(),
+    greatest(v_delta, 0),
+    coalesce(p_meta, '{}'::jsonb) || jsonb_build_object('applied_delta', v_delta)
+  );
+end;
+$$;
+```
+
+`game_log.candies_delta`에 `CHECK (candies_delta >= 0)`가 있는 스키마를 기준으로,
+로그 컬럼은 음수를 저장하지 않고(`greatest(v_delta, 0)`), 실제 적용값(음수 포함)은
+`meta.applied_delta`에 기록합니다.
+
+### 2) 실행 권한 부여
+
+```sql
+revoke all on function public.apply_candies_delta(text, integer, jsonb) from public;
+grant execute on function public.apply_candies_delta(text, integer, jsonb) to anon, authenticated;
+```
+
+### 3) 동작 테스트
+
+```sql
+-- 비용 차감
+select public.apply_candies_delta(
+  'game1',
+  -10,
+  '{"nickname":"옥","phase":"spin_cost"}'::jsonb
+);
+
+-- 결과 반영(예: +30)
+select public.apply_candies_delta(
+  'game1',
+  30,
+  '{"nickname":"옥","phase":"spin_result","result_label":"+30"}'::jsonb
+);
+```

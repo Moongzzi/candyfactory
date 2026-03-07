@@ -109,6 +109,52 @@ class GamePlayApiService {
     ]);
   }
 
+  Future<void> applyCandiesDelta({
+    required int delta,
+    String gameCode = 'game1',
+    Map<String, dynamic>? extraMeta,
+  }) async {
+    if (delta == 0) {
+      return;
+    }
+
+    final uri = Uri.parse(
+      '${SupabaseConfig.projectUrl}/rest/v1/rpc/apply_candies_delta',
+    );
+    final response = await http.post(
+      uri,
+      headers: {
+        ...SupabaseConfig.defaultHeaders,
+        'Prefer': 'return=representation',
+      },
+      body: jsonEncode({
+        'p_game_code': gameCode,
+        'p_candies_delta': delta,
+        'p_meta': _buildMeta(extra: {
+          'score': delta,
+          if (extraMeta != null) ...extraMeta,
+        }),
+      }),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+
+    final message = _extractErrorMessage(response.body);
+    if (_isRpcNotFound(statusCode: response.statusCode, message: message)) {
+      throw Exception(
+        'apply_candies_delta RPC가 준비되지 않았습니다. docs/supabase_game_api_setup.md의 룰렛 전용 RPC SQL을 적용해주세요.',
+      );
+    }
+
+    throw Exception(
+      message.isEmpty
+          ? '포인트 반영 API 호출에 실패했습니다.'
+          : '포인트 반영 API 호출에 실패했습니다. $message',
+    );
+  }
+
   Map<String, dynamic> _buildMeta({Map<String, dynamic>? extra}) {
     final nickname = SessionStore.nickname.value;
     return <String, dynamic>{'nickname': nickname, if (extra != null) ...extra};
@@ -244,6 +290,16 @@ class GamePlayApiService {
     return normalized.contains('not authenticated') ||
         normalized.contains('permission denied') ||
         normalized.contains('jwt');
+  }
+
+  bool _isRpcNotFound({required int statusCode, required String message}) {
+    if (statusCode == 404) {
+      return true;
+    }
+
+    final normalized = message.toLowerCase();
+    return normalized.contains('could not find the function') ||
+        normalized.contains('apply_candies_delta');
   }
 
   String _extractErrorMessage(String responseBody) {

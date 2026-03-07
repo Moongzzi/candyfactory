@@ -1,7 +1,9 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../game_play_api_service.dart';
 import '../../constants/app_assets.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_sizes.dart';
@@ -16,24 +18,40 @@ class RouletteScreen extends StatefulWidget {
 
 class _RouletteScreenState extends State<RouletteScreen>
     with SingleTickerProviderStateMixin {
+  final GamePlayApiService _gamePlayApiService = GamePlayApiService();
   late final AnimationController _controller;
   late Animation<double> _rotation;
   double _currentRotation = 0.0;
   bool _isSpinning = false;
   bool _showResult = false;
+  bool _isApplyingResultApi = false;
   String _resultLabel = '';
 
   final List<String> _segments = <String>[
-    '꽝',
-    '꽝',
-    '꽝',
-    '꽝',
-    '+5',
+    '-10',
     '+5',
     '+10',
-    '+10',
+    '꽝',
     '-50',
+    '꽝',
+    '+5',
+    '+10',
+    '-30',
     '+300',
+  ];
+
+  // Tune each slice probability by changing this list (same order as _segments).
+  final List<int> _segmentWeights = <int>[
+    896, // -10
+    1282, // +5
+    1154, // +10
+    1795, // 꽝
+    385, // -50
+    1538, // 꽝
+    1282, // +5
+    1154, // +10
+    513, // -30
+    1, // +300 (0.01% = 1/10000)
   ];
 
   @override
@@ -61,19 +79,137 @@ class _RouletteScreenState extends State<RouletteScreen>
     if (status != AnimationStatus.completed) {
       return;
     }
+
     setState(() {
       _isSpinning = false;
       _showResult = true;
     });
+
+    unawaited(_applyResultPointApis());
   }
 
-  void _spin() {
-    if (_isSpinning) {
+  int _resultToDelta(String value) {
+    if (value == '꽝') {
+      return 0;
+    }
+
+    return int.tryParse(value) ?? 0;
+  }
+
+  int _pickWeightedIndex(math.Random random) {
+    if (_segmentWeights.length != _segments.length) {
+      return random.nextInt(_segments.length);
+    }
+
+    var totalWeight = 0;
+    for (final weight in _segmentWeights) {
+      if (weight > 0) {
+        totalWeight += weight;
+      }
+    }
+
+    if (totalWeight <= 0) {
+      return random.nextInt(_segments.length);
+    }
+
+    var point = random.nextInt(totalWeight);
+    for (var i = 0; i < _segmentWeights.length; i++) {
+      final weight = _segmentWeights[i];
+      if (weight <= 0) {
+        continue;
+      }
+      if (point < weight) {
+        return i;
+      }
+      point -= weight;
+    }
+
+    return _segments.length - 1;
+  }
+
+  Future<void> _applyResultPointApis() async {
+    if (_isApplyingResultApi) {
+      return;
+    }
+
+    setState(() {
+      _isApplyingResultApi = true;
+    });
+
+    final resultDelta = _resultToDelta(_resultLabel);
+
+    try {
+      // Roulette play cost is always applied first.
+      await _gamePlayApiService.applyCandiesDelta(
+        delta: -10,
+        gameCode: 'game1',
+        extraMeta: {'phase': 'spin_cost', 'result_label': _resultLabel},
+      );
+      await _gamePlayApiService.applyCandiesDelta(
+        delta: resultDelta,
+        gameCode: 'game1',
+        extraMeta: {'phase': 'spin_result', 'result_label': _resultLabel},
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            content: const Text('포인트 반영 중 오류가 발생했습니다. 다시 시도해 주세요.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isApplyingResultApi = false;
+      });
+    }
+  }
+
+  Future<void> _spin() async {
+    if (_isSpinning || _isApplyingResultApi) {
+      return;
+    }
+
+    final shouldSpin = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: const Text('캔디 포인트 10점을 활용하여 룰렛을 돌립니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('돌리기'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSpin != true || !mounted) {
       return;
     }
 
     final random = math.Random();
-    final index = random.nextInt(_segments.length);
+    final index = _pickWeightedIndex(random);
     _resultLabel = _segments[index];
 
     final slice = (2 * math.pi) / _segments.length;
@@ -205,7 +341,9 @@ class _RouletteScreenState extends State<RouletteScreen>
                   width: buttonSize,
                   height: buttonSize,
                   child: ElevatedButton(
-                    onPressed: _spin,
+                    onPressed: (_isSpinning || _isApplyingResultApi)
+                        ? null
+                        : _spin,
                     style: ElevatedButton.styleFrom(
                       minimumSize: Size.zero,
                       fixedSize: Size(buttonSize, buttonSize),
