@@ -18,7 +18,7 @@ class CandyFactoryApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Candy Factory',
+      title: '옥끼의 사탕공장',
       theme: ThemeData(fontFamily: 'EF_AONE'),
       initialRoute: AppRoutes.home,
       builder: (context, child) {
