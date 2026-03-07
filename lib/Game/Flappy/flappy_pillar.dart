@@ -14,26 +14,41 @@ class FlappyPillar extends SpriteComponent
     if (flipped) {
       scale = Vector2(1, -1);
     }
-    _hitbox = RectangleHitbox(collisionType: CollisionType.passive);
-    add(_hitbox);
+    _bodyHitbox = RectangleHitbox(collisionType: CollisionType.passive);
+    _capHitbox = RectangleHitbox(collisionType: CollisionType.passive);
+    if (AppSizes.flappyShowCollisionDebug) {
+      debugMode = true;
+      _bodyHitbox.debugMode = true;
+      _capHitbox.debugMode = true;
+    }
+    addAll([_bodyHitbox, _capHitbox]);
   }
 
   late final bool _isFlipped;
-  late final RectangleHitbox _hitbox;
+  late final RectangleHitbox _bodyHitbox;
+  late final RectangleHitbox _capHitbox;
 
   @override
   void onMount() {
     super.onMount();
-    final hitboxSize = Vector2(
+    final bodyHitboxSize = Vector2(
       size.x * AppSizes.flappyPillarHitboxScale,
       size.y * AppSizes.flappyPillarHitboxScale,
     );
-    _hitbox
-      ..size = hitboxSize
+    _bodyHitbox
+      ..size = bodyHitboxSize
       ..position = Vector2(
-        (size.x - hitboxSize.x) / 2,
-        (size.y - hitboxSize.y) / 2,
+        (size.x - bodyHitboxSize.x) / 2,
+        (size.y - bodyHitboxSize.y) / 2,
       );
+
+    final capHitboxSize = Vector2(
+      size.x * AppSizes.flappyPillarCapHitboxWidthScale,
+      size.y * AppSizes.flappyPillarCapHitboxHeightScale,
+    );
+    _capHitbox
+      ..size = capHitboxSize
+      ..position = Vector2((size.x - capHitboxSize.x) / 2, 0);
   }
 
   Rect getWorldRect() {
@@ -95,8 +110,7 @@ class FlappyPillarPair extends PositionComponent with HasGameRef<FlappyGame> {
     return false;
   }
 
-  bool overlapsPlayerRect(Rect playerRect) {
-    return _top.getWorldRect().overlaps(playerRect) ||
-        _bottom.getWorldRect().overlaps(playerRect);
-  }
+  bool overlapsPlayerRect(Rect playerRect) =>
+      _top.getWorldRect().overlaps(playerRect) ||
+      _bottom.getWorldRect().overlaps(playerRect);
 }

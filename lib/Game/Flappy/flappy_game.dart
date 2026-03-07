@@ -25,6 +25,7 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
 
   bool _isStarted = false;
   bool _isGameOver = false;
+  bool _timerStarted = false;
   int _score = 0;
   double _timeLeft = AppSizes.flappyGameStartTimeSec;
   double _spawnTimer = 0.0;
@@ -50,6 +51,9 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    if (AppSizes.flappyShowCollisionDebug) {
+      debugMode = true;
+    }
     await images.loadAll([
       AppAssets.gameBackground4Flame,
       AppAssets.gameTimerBackgroundFlappyFlame,
@@ -138,12 +142,6 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     player.applyPhysics(dt, _gravity);
     player.clampToTop(0.0);
 
-    _timeLeft = (_timeLeft - dt).clamp(0.0, double.infinity);
-    if (_timeLeft <= 0) {
-      _endGame();
-      return;
-    }
-
     final floorY = size.y - _floorPadding;
     if (player.position.y + (player.size.y / 2) >= floorY) {
       player.clampToFloor(floorY);
@@ -158,20 +156,27 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     }
 
     final playerX = player.position.x;
-    final playerRect = player.getWorldRect();
     for (final pillar in List<FlappyPillarPair>.from(_pillars)) {
       if (pillar.isRemoving) {
         _pillars.remove(pillar);
         continue;
       }
-      if (pillar.overlapsPlayerRect(playerRect)) {
+      if (pillar.checkScore(playerX)) {
+        _score += 3;
+      }
+      if (!_timerStarted && pillar.position.x <= size.x) {
+        _timerStarted = true;
+      }
+    }
+
+    if (_timerStarted) {
+      _timeLeft = (_timeLeft - dt).clamp(0.0, double.infinity);
+      if (_timeLeft <= 0) {
         _endGame();
         return;
       }
-      if (pillar.checkScore(playerX)) {
-        _score += 1;
-      }
     }
+
     _hud.updateValues(_timeLeft, _score);
   }
 
@@ -212,9 +217,10 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
       pillar.removeFromParent();
     }
     _pillars.clear();
-    _spawnTimer = 0.0;
+    _spawnTimer = AppSizes.flappySpawnInterval - AppSizes.flappyFirstSpawnDelay;
     _score = 0;
     _timeLeft = AppSizes.flappyGameStartTimeSec;
+    _timerStarted = false;
     _isGameOver = false;
 
     _player?.reset(

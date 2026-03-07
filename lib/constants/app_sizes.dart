@@ -100,8 +100,12 @@ class AppSizes {
   static const double flappyPillarGap = 190.0;
   static const double flappyPillarSpeed = 180.0;
   static const double flappySpawnInterval = 1.6;
+  static const double flappyFirstSpawnDelay = 0.35;
   static const double flappyPillarMinHeight = 90.0;
+  static const bool flappyShowCollisionDebug = false;
   static const double flappyPillarHitboxScale = 0.8;
+  static const double flappyPillarCapHitboxWidthScale = 0.96;
+  static const double flappyPillarCapHitboxHeightScale = 0.14;
   static const double flappyTopPadding = 120.0;
   static const double flappyBottomPadding = 40.0;
   static const double flappyFloorPadding = 0.0;

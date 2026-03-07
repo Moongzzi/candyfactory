@@ -13,6 +13,10 @@ class FlappyPlayer extends SpriteComponent
     : super(sprite: sprite, anchor: Anchor.center) {
     _hitbox = RectangleHitbox(collisionType: CollisionType.active)
       ..anchor = Anchor.center;
+    if (AppSizes.flappyShowCollisionDebug) {
+      debugMode = true;
+      _hitbox.debugMode = true;
+    }
     add(_hitbox);
   }
 
@@ -57,7 +61,15 @@ class FlappyPlayer extends SpriteComponent
   Rect getWorldRect() {
     final anchorOffset = Vector2(anchor.x * size.x, anchor.y * size.y);
     final topLeft = absolutePosition - anchorOffset;
-    return Rect.fromLTWH(topLeft.x, topLeft.y, size.x, size.y);
+    final rect = Rect.fromLTWH(topLeft.x, topLeft.y, size.x, size.y);
+    final insetX = rect.width * (1 - AppSizes.flappyPlayerHitboxScale) / 2;
+    final insetY = rect.height * (1 - AppSizes.flappyPlayerHitboxScale) / 2;
+    return Rect.fromLTWH(
+      rect.left + insetX,
+      rect.top + insetY,
+      rect.width - (insetX * 2),
+      rect.height - (insetY * 2),
+    );
   }
 
   @override
@@ -69,8 +81,8 @@ class FlappyPlayer extends SpriteComponent
     if (!gameRef.isRunning) {
       return;
     }
-    final parent = other.parent;
-    if (parent is FlappyPillar) {
+    final isPillar = other is FlappyPillar || other.parent is FlappyPillar;
+    if (isPillar) {
       gameRef.handlePlayerHit();
     }
   }
