@@ -19,6 +19,18 @@ class RouletteScreen extends StatefulWidget {
 class _RouletteScreenState extends State<RouletteScreen>
     with SingleTickerProviderStateMixin {
   final GamePlayApiService _gamePlayApiService = GamePlayApiService();
+  static const int _spinCost = 100;
+  static const List<Color> _weightChartColors = <Color>[
+    Color(0xFF2A9D8F),
+    Color(0xFFE76F51),
+    Color(0xFFF4A261),
+    Color(0xFF264653),
+    Color(0xFFE9C46A),
+    Color(0xFF457B9D),
+    Color(0xFF8AB17D),
+    Color(0xFF6D597A),
+  ];
+
   late final AnimationController _controller;
   late Animation<double> _rotation;
   double _currentRotation = 0.0;
@@ -28,30 +40,30 @@ class _RouletteScreenState extends State<RouletteScreen>
   String _resultLabel = '';
 
   final List<String> _segments = <String>[
-    '-10',
-    '+5',
-    '+10',
-    '꽝',
-    '-50',
-    '꽝',
-    '+5',
-    '+10',
-    '-30',
+    '+100',
     '+300',
+    '-500',
+    '꽝',
+    '-1000',
+    '꽝',
+    '+500',
+    '+100',
+    '+1000',
+    'x3',
   ];
 
   // Tune each slice probability by changing this list (same order as _segments).
   final List<int> _segmentWeights = <int>[
-    896, // -10
-    1282, // +5
-    1154, // +10
-    1795, // 꽝
-    385, // -50
-    1538, // 꽝
-    1282, // +5
-    1154, // +10
-    513, // -30
-    1, // +300 (0.01% = 1/10000)
+    887, // +100
+    1269, // +300
+    1143, // -500
+    1777, // 꽝
+    381, // -1000
+    1523, // 꽝
+    1269, // +500
+    1143, // +100
+    508, // +1000
+    100, // x3 (1% = 100/10000)
   ];
 
   @override
@@ -88,12 +100,28 @@ class _RouletteScreenState extends State<RouletteScreen>
     unawaited(_applyResultPointApis());
   }
 
-  int _resultToDelta(String value) {
+  Future<int> _resolveResultDelta(String value) async {
     if (value == '꽝') {
       return 0;
     }
 
-    return int.tryParse(value) ?? 0;
+    final trimmed = value.trim();
+    if (trimmed.startsWith('x') || trimmed.startsWith('X')) {
+      final factor = int.tryParse(trimmed.substring(1));
+      if (factor == null || factor <= 1) {
+        return 0;
+      }
+      final currentCandies = await _gamePlayApiService.getCurrentCandies();
+      if (currentCandies == null) {
+        throw Exception('x3 보상 계산을 위한 캔디 조회에 실패했습니다.');
+      }
+      if (currentCandies <= 0) {
+        return 0;
+      }
+      return currentCandies * (factor - 1);
+    }
+
+    return int.tryParse(trimmed) ?? 0;
   }
 
   int _pickWeightedIndex(math.Random random) {
@@ -136,19 +164,31 @@ class _RouletteScreenState extends State<RouletteScreen>
       _isApplyingResultApi = true;
     });
 
-    final resultDelta = _resultToDelta(_resultLabel);
+    final requestedDelta = await _resolveResultDelta(_resultLabel);
+    var resultDelta = requestedDelta;
+
+    // Keep total candies from going below zero to avoid backend 400 errors.
+    if (resultDelta < 0) {
+      final currentCandies = await _gamePlayApiService.getCurrentCandies();
+      if (currentCandies == null) {
+        throw Exception('결과 반영 전 캔디 조회에 실패했습니다.');
+      }
+      final minDelta = -currentCandies;
+      if (resultDelta < minDelta) {
+        resultDelta = minDelta;
+      }
+    }
 
     try {
-      // Roulette play cost is always applied first.
-      await _gamePlayApiService.applyCandiesDelta(
-        delta: -10,
-        gameCode: 'game1',
-        extraMeta: {'phase': 'spin_cost', 'result_label': _resultLabel},
-      );
       await _gamePlayApiService.applyCandiesDelta(
         delta: resultDelta,
         gameCode: 'game1',
-        extraMeta: {'phase': 'spin_result', 'result_label': _resultLabel},
+        extraMeta: {
+          'phase': 'spin_result',
+          'result_label': _resultLabel,
+          'requested_delta': requestedDelta,
+          'applied_delta': resultDelta,
+        },
       );
     } catch (_) {
       if (!mounted) {
@@ -185,11 +225,52 @@ class _RouletteScreenState extends State<RouletteScreen>
       return;
     }
 
+    final currentCandies = await _gamePlayApiService.getCurrentCandies();
+    if (!mounted) {
+      return;
+    }
+
+    if (currentCandies == null) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            content: const Text('캔디 포인트를 조회하지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    if (currentCandies < _spinCost) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            content: const Text('캔디 포인트가 100개 미만이라 룰렛을 돌릴 수 없습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     final shouldSpin = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          content: const Text('캔디 포인트 10점을 활용하여 룰렛을 돌립니다.'),
+          content: const Text('캔디 포인트 100점을 사용해 룰렛을 돌립니다.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -207,6 +288,45 @@ class _RouletteScreenState extends State<RouletteScreen>
     if (shouldSpin != true || !mounted) {
       return;
     }
+
+    setState(() {
+      _isApplyingResultApi = true;
+    });
+    try {
+      await _gamePlayApiService.applyCandiesDelta(
+        delta: -_spinCost,
+        gameCode: 'game1',
+        extraMeta: {'phase': 'spin_cost'},
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            content: const Text('캔디 포인트 차감에 실패했습니다. 다시 시도해 주세요.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          );
+        },
+      );
+      setState(() {
+        _isApplyingResultApi = false;
+      });
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isApplyingResultApi = false;
+    });
 
     final random = math.Random();
     final index = _pickWeightedIndex(random);
@@ -246,6 +366,98 @@ class _RouletteScreenState extends State<RouletteScreen>
     setState(() {
       _showResult = false;
     });
+  }
+
+  List<_WeightEntry> _buildMergedWeightEntries() {
+    final merged = <String, int>{};
+    for (var i = 0; i < _segments.length; i++) {
+      final label = _segments[i];
+      final weight = i < _segmentWeights.length ? _segmentWeights[i] : 0;
+      merged[label] = (merged[label] ?? 0) + math.max(0, weight);
+    }
+
+    return merged.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) => _WeightEntry(label: entry.key, weight: entry.value))
+        .toList(growable: false);
+  }
+
+  Future<void> _showWeightHelpDialog() async {
+    final entries = _buildMergedWeightEntries();
+    if (entries.isEmpty) {
+      return;
+    }
+
+    final total = entries.fold<int>(0, (sum, entry) => sum + entry.weight);
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('룰렛 가중치 안내'),
+          content: SizedBox(
+            width: 320,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      width: 220,
+                      height: 220,
+                      child: CustomPaint(
+                        painter: _RouletteWeightPiePainter(
+                          entries: entries,
+                          colors: _weightChartColors,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  for (var i = 0; i < entries.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: _weightChartColors[
+                                  i % _weightChartColors.length],
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              entries[i].label,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${((entries[i].weight / total) * 100).toStringAsFixed(1)}%',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -359,6 +571,24 @@ class _RouletteScreenState extends State<RouletteScreen>
                   ),
                 ),
               ),
+              Positioned(
+                right: 16 * scale,
+                bottom: 16 * scale,
+                child: SafeArea(
+                  child: SizedBox(
+                    width: 52 * scale,
+                    height: 52 * scale,
+                    child: FloatingActionButton(
+                      heroTag: 'roulette_help_button',
+                      onPressed: _showWeightHelpDialog,
+                      backgroundColor: const Color(0xFFFFFFFF),
+                      foregroundColor: const Color(0xFF111111),
+                      mini: true,
+                      child: const Icon(Icons.help_outline),
+                    ),
+                  ),
+                ),
+              ),
               if (_showResult)
                 Positioned.fill(
                   child: Container(
@@ -401,6 +631,56 @@ class _RouletteScreenState extends State<RouletteScreen>
         },
       ),
     );
+  }
+}
+
+class _WeightEntry {
+  const _WeightEntry({required this.label, required this.weight});
+
+  final String label;
+  final int weight;
+}
+
+class _RouletteWeightPiePainter extends CustomPainter {
+  _RouletteWeightPiePainter({required this.entries, required this.colors});
+
+  final List<_WeightEntry> entries;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (entries.isEmpty || colors.isEmpty) {
+      return;
+    }
+
+    final total = entries.fold<int>(0, (sum, entry) => sum + entry.weight);
+    if (total <= 0) {
+      return;
+    }
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    var startAngle = -math.pi / 2;
+
+    for (var i = 0; i < entries.length; i++) {
+      final sweepAngle = (entries[i].weight / total) * (math.pi * 2);
+      final paint = Paint()
+        ..color = colors[i % colors.length]
+        ..style = PaintingStyle.fill;
+      canvas.drawArc(rect, startAngle, sweepAngle, true, paint);
+      startAngle += sweepAngle;
+    }
+
+    final holePaint = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius * 0.38, holePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RouletteWeightPiePainter oldDelegate) {
+    return oldDelegate.entries != entries || oldDelegate.colors != colors;
   }
 }
 

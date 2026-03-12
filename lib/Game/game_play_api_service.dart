@@ -155,6 +155,11 @@ class GamePlayApiService {
     );
   }
 
+  Future<int?> getCurrentCandies() async {
+    final profile = await _fetchCurrentProfile();
+    return profile?.totalCandies;
+  }
+
   Map<String, dynamic> _buildMeta({Map<String, dynamic>? extra}) {
     final nickname = SessionStore.nickname.value;
     return <String, dynamic>{'nickname': nickname, if (extra != null) ...extra};

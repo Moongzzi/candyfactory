@@ -25,12 +25,12 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
   final List<_UpPlatform> _platforms = <_UpPlatform>[];
 
   late final List<Sprite> _normalPlatformSprites;
-  late final Sprite _breakPlatformSprite;
 
   bool _isStarted = false;
   bool _isGameOver = false;
 
-  double _timeLeft = AppSizes.upGameStartTimeSec;
+  double _elapsedTime = 0.0;
+  int _difficultyLevel = 0;
   double _cameraY = 0.0;
 
   double _playerX = 0.0;
@@ -60,18 +60,16 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
       AppAssets.upStep2Flame,
       AppAssets.upStep3Flame,
       AppAssets.upStep4Flame,
-      AppAssets.upStepBreakFlame,
     ]);
 
     _background = _UpSkyBackground();
     add(_background);
+    final scoreBgSprite = await loadSprite(AppAssets.gameTimerBackgroundUpFlame);
 
-    final timerSprite = await loadSprite(AppAssets.gameTimerBackgroundUpFlame);
     _hud = _UpHud(
       textSize: AppSizes.upHudTextSize,
       padding: AppSizes.upHudPadding,
-      timerSprite: timerSprite,
-      maxTime: AppSizes.upGameStartTimeSec,
+      timerSprite: scoreBgSprite,
     );
     add(_hud);
 
@@ -81,8 +79,6 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
       Sprite(images.fromCache(AppAssets.upStep3Flame)),
       Sprite(images.fromCache(AppAssets.upStep4Flame)),
     ];
-    _breakPlatformSprite = Sprite(images.fromCache(AppAssets.upStepBreakFlame));
-
     _player = SpriteComponent(
       sprite: Sprite(images.fromCache(AppAssets.upCharacterFlame)),
       anchor: Anchor.topLeft,
@@ -93,7 +89,7 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     _syncAllPositions();
 
     overlays.add('upStart');
-    _hud.updateValues(0, 0);
+    _hud.updateValues(0);
   }
 
   @override
@@ -137,12 +133,13 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     }
 
     _updateCamera();
-    _updateTimer(dt);
+    _updateDifficulty(dt);
 
     if (_isGameOver) {
       return;
     }
 
+    _updateBlinkingPlatforms(dt);
     _spawnPlatformsIfNeeded();
     _cleanupOffscreenPlatforms();
     _syncAllPositions();
@@ -198,7 +195,8 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     final playerSize = AppSizes.upPlayerSize * scale;
     final jumpVelocity = AppSizes.upJumpVelocity * scale;
 
-    _timeLeft = AppSizes.upGameStartTimeSec;
+    _elapsedTime = 0.0;
+    _difficultyLevel = 0;
     _isGameOver = false;
 
     _startY = size.y * AppSizes.upStartYFactor;
@@ -216,7 +214,7 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     _spawnInitialPlatforms();
     _spawnPlatformsIfNeeded();
     _syncAllPositions();
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
   }
 
   void _spawnInitialPlatforms() {
@@ -230,10 +228,10 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
       y: firstY,
       width: platformWidth,
       height: platformHeight,
-      breakable: false,
       level: _nextPlatformLevel,
       moving: false,
       speedX: 0.0,
+      blinking: false,
     );
     _nextPlatformLevel += 1;
 
@@ -250,22 +248,19 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
 
     while (_nextSpawnY > topLimit) {
       final x = _randomX(platformWidth);
-      final breakChance = _score < AppSizes.upBreakStepMinScore
-          ? 0.0
-          : AppSizes.upBreakStepChance;
-      final breakable = _random.nextDouble() < breakChance;
-      final moving = !breakable && (_random.nextDouble() < _movingStepChance());
+      final moving = _random.nextDouble() < _movingStepChance();
       final movingSpeed = moving ? _randomMovingSpeed() : 0.0;
+      final blinking = _random.nextDouble() < _blinkingStepChance();
 
       _addPlatform(
         x: x,
         y: _nextSpawnY,
         width: platformWidth,
         height: platformHeight,
-        breakable: breakable,
         level: _nextPlatformLevel,
         moving: moving,
         speedX: movingSpeed,
+        blinking: blinking,
       );
       _nextPlatformLevel += 1;
 
@@ -279,16 +274,14 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     required double y,
     required double width,
     required double height,
-    required bool breakable,
     required int level,
     required bool moving,
     required double speedX,
+    required bool blinking,
   }) {
-    final sprite = breakable
-        ? _breakPlatformSprite
-        : _normalPlatformSprites[_random.nextInt(
-            _normalPlatformSprites.length,
-          )];
+    final sprite = _normalPlatformSprites[_random.nextInt(
+      _normalPlatformSprites.length,
+    )];
     final component = SpriteComponent(
       sprite: sprite,
       anchor: Anchor.topLeft,
@@ -296,19 +289,23 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
       position: Vector2(x, y - _cameraY),
     );
     add(component);
-    _platforms.add(
-      _UpPlatform(
-        component: component,
-        x: x,
-        y: y,
-        width: width,
-        height: height,
-        breakable: breakable,
-        level: level,
-        moving: moving,
-        speedX: speedX,
-      ),
+    final platform = _UpPlatform(
+      component: component,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+      level: level,
+      moving: moving,
+      speedX: speedX,
+      blinking: blinking,
     );
+    if (blinking) {
+      platform
+        ..visibleDuration = 0.9 + (_random.nextDouble() * 0.4)
+        ..hiddenDuration = 0.45 + (_random.nextDouble() * 0.35);
+    }
+    _platforms.add(platform);
   }
 
   void _updateMovingPlatforms(double dt) {
@@ -386,6 +383,9 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
       if (platform.broken) {
         continue;
       }
+      if (!platform.isVisibleNow) {
+        continue;
+      }
 
       final platformInsetX = platform.width * AppSizes.upPlatformHitboxInsetX;
       final platformInsetTop =
@@ -408,14 +408,13 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
       _velocityY = -(AppSizes.upJumpVelocity * scale);
       final gained = platform.level - _lastLandedLevel;
       if (gained > 0) {
-        _score += gained;
+        _score += (gained * 2);
         _lastLandedLevel = platform.level;
+        _hud.updateValues(_score);
       }
 
-      if (platform.breakable) {
-        platform.broken = true;
-        platform.component.removeFromParent();
-      }
+      platform.broken = true;
+      platform.component.removeFromParent();
       return;
     }
   }
@@ -428,11 +427,28 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     }
   }
 
-  void _updateTimer(double dt) {
-    _timeLeft = (_timeLeft - dt).clamp(0.0, double.infinity);
-    _hud.updateValues(_timeLeft, _score);
-    if (_timeLeft <= 0) {
-      _endGame();
+  void _updateDifficulty(double dt) {
+    _elapsedTime += dt;
+    final nextLevel = (_elapsedTime / AppSizes.upGameStartTimeSec).floor();
+    if (nextLevel != _difficultyLevel) {
+      _difficultyLevel = nextLevel;
+    }
+    _hud.updateValues(_score);
+  }
+
+  void _updateBlinkingPlatforms(double dt) {
+    for (final platform in _platforms) {
+      if (!platform.blinking || platform.broken) {
+        continue;
+      }
+      platform.blinkElapsed += dt;
+      final cycle = platform.visibleDuration + platform.hiddenDuration;
+      if (cycle <= 0) {
+        platform.isVisibleNow = true;
+        continue;
+      }
+      final phase = platform.blinkElapsed % cycle;
+      platform.isVisibleNow = phase < platform.visibleDuration;
     }
   }
 
@@ -446,6 +462,9 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
 
     for (final platform in _platforms) {
       platform.component.position = Vector2(platform.x, platform.y - _cameraY);
+      platform.component.opacity = platform.isVisibleNow && !platform.broken
+          ? 1.0
+          : 0.28;
     }
   }
 
@@ -487,6 +506,14 @@ class UpGame extends FlameGame with TapCallbacks, DragCallbacks {
     return _random.nextBool() ? speed : -speed;
   }
 
+  double _blinkingStepChance() {
+    if (_difficultyLevel <= 0) {
+      return 0.0;
+    }
+    final chance = 0.08 + (_difficultyLevel * 0.05);
+    return chance.clamp(0.08, 0.45).toDouble();
+  }
+
   double get _scale =>
       math.min(size.x / AppSizes.designWidth, size.y / AppSizes.designHeight);
 
@@ -500,10 +527,10 @@ class _UpPlatform {
     required this.y,
     required this.width,
     required this.height,
-    required this.breakable,
     required this.level,
     required this.moving,
     required this.speedX,
+    required this.blinking,
   });
 
   final SpriteComponent component;
@@ -511,12 +538,16 @@ class _UpPlatform {
   final double y;
   final double width;
   final double height;
-  final bool breakable;
   final int level;
   final bool moving;
   double speedX;
+  final bool blinking;
 
   bool broken = false;
+  bool isVisibleNow = true;
+  double blinkElapsed = 0.0;
+  double visibleDuration = 1.0;
+  double hiddenDuration = 0.8;
 }
 
 class _UpSkyBackground extends PositionComponent with HasGameRef<UpGame> {
@@ -568,13 +599,11 @@ class _UpHud extends PositionComponent {
     required this.textSize,
     required this.padding,
     required this.timerSprite,
-    required this.maxTime,
   }) : super(anchor: Anchor.topLeft) {
-    _timerBackground = SpriteComponent(
+    _scoreBackground = SpriteComponent(
       sprite: timerSprite,
       anchor: Anchor.topLeft,
     );
-    _timerFill = _TimerFillComponent();
     _scoreLabel = TextComponent(
       text: '0',
       anchor: Anchor.center,
@@ -582,22 +611,15 @@ class _UpHud extends PositionComponent {
         style: TextStyle(color: AppColors.text, fontSize: textSize),
       ),
     );
-    addAll([_timerBackground, _timerFill, _scoreLabel]);
+    addAll([_scoreBackground, _scoreLabel]);
   }
 
   final double textSize;
   final double padding;
   final Sprite timerSprite;
-  final double maxTime;
 
-  late final SpriteComponent _timerBackground;
-  late final _TimerFillComponent _timerFill;
+  late final SpriteComponent _scoreBackground;
   late final TextComponent _scoreLabel;
-  double _fillRatio = 1.0;
-  double _trackWidth = 0.0;
-  double _trackHeight = 0.0;
-  double _insetLeft = 0.0;
-  double _insetVertical = 0.0;
 
   @override
   void onGameResize(Vector2 size) {
@@ -606,81 +628,24 @@ class _UpHud extends PositionComponent {
       size.x / AppSizes.designWidth,
       size.y / AppSizes.designHeight,
     );
-    final timerWidth = AppSizes.starGameTimerWidth * scale;
-    final timerHeight = AppSizes.starGameTimerHeight * scale;
-    final scoreLeft = AppSizes.starGameScoreInsetLeft * scale;
-    final scoreTop = AppSizes.starGameScoreInsetTop * scale;
-    final scoreBoxWidth = AppSizes.starGameScoreBoxWidth * scale;
-    final scoreBoxHeight = AppSizes.starGameScoreBoxHeight * scale;
-    final insetLeft = AppSizes.starGameTimerInsetLeft * scale;
-    final insetRight = AppSizes.starGameTimerInsetRight * scale;
-    final insetVertical = AppSizes.starGameTimerInsetVertical * scale;
-    _trackWidth = timerWidth - insetLeft - insetRight;
-    _trackHeight = timerHeight - (insetVertical * 2);
-    _insetLeft = insetLeft;
-    _insetVertical = insetVertical;
+    final bgWidth = timerSprite.srcSize.x * scale;
+    final bgHeight = timerSprite.srcSize.y * scale;
 
     position = Vector2(padding * scale, padding * scale);
-    _timerBackground
-      ..size = Vector2(timerWidth, timerHeight)
+    _scoreBackground
+      ..size = Vector2(bgWidth, bgHeight)
       ..position = Vector2.zero();
-
-    final fillWidth = _trackWidth * _fillRatio;
-    _timerFill.updateFill(
-      position: Vector2(_insetLeft, _insetVertical),
-      size: Vector2(fillWidth, _trackHeight),
-      gradientRect: Rect.fromLTWH(0, 0, _trackWidth, _trackHeight),
-    );
-
     _scoreLabel
       ..position = Vector2(
-        scoreLeft + (scoreBoxWidth / 2),
-        scoreTop + (scoreBoxHeight / 2),
+        bgWidth / 2,
+        bgHeight / 2,
       )
       ..textRenderer = TextPaint(
         style: TextStyle(color: AppColors.text, fontSize: textSize * scale),
       );
   }
 
-  void updateValues(double timeLeft, int score) {
-    _fillRatio = (timeLeft / maxTime).clamp(0.0, 1.0);
-    final width = _trackWidth * _fillRatio;
-    _timerFill.updateFill(
-      position: Vector2(_insetLeft, _insetVertical),
-      size: Vector2(width, _trackHeight),
-      gradientRect: Rect.fromLTWH(0, 0, _trackWidth, _trackHeight),
-    );
+  void updateValues(int score) {
     _scoreLabel.text = '$score';
-  }
-}
-
-class _TimerFillComponent extends PositionComponent {
-  _TimerFillComponent() : super(anchor: Anchor.topLeft);
-
-  final Paint _paint = Paint();
-  Rect _gradientRect = Rect.zero;
-
-  void updateFill({
-    required Vector2 position,
-    required Vector2 size,
-    required Rect gradientRect,
-  }) {
-    this.position = position;
-    this.size = size;
-    _gradientRect = gradientRect;
-  }
-
-  @override
-  void render(Canvas canvas) {
-    if (size.x <= 0 || size.y <= 0) {
-      return;
-    }
-    _paint.shader = LinearGradient(
-      colors: AppColors.webGradientColors,
-      stops: AppColors.webGradientStops,
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-    ).createShader(_gradientRect);
-    canvas.drawRect(Offset.zero & Size(size.x, size.y), _paint);
   }
 }

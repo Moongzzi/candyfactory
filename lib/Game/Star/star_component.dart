@@ -43,6 +43,51 @@ class StarComponent extends PositionComponent with TapCallbacks {
 
   late final SpriteComponent _sprite;
   late final TextComponent _label;
+  Vector2 _velocity = Vector2.zero();
+  Rect _movementBounds = Rect.zero;
+
+  void setMovement({required Vector2 velocity, required Rect bounds}) {
+    _velocity = velocity;
+    _movementBounds = bounds;
+  }
+
+  void setSpeed(double speed) {
+    if (_velocity.length2 == 0) {
+      return;
+    }
+    _velocity = _velocity.normalized()..scale(speed);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (_movementBounds.width <= 0 || _movementBounds.height <= 0) {
+      return;
+    }
+    position += _velocity * dt;
+
+    final radius = size.x / 2;
+    final minX = _movementBounds.left + radius;
+    final maxX = _movementBounds.right - radius;
+    final minY = _movementBounds.top + radius;
+    final maxY = _movementBounds.bottom - radius;
+
+    if (position.x < minX) {
+      position.x = minX;
+      _velocity.x = _velocity.x.abs();
+    } else if (position.x > maxX) {
+      position.x = maxX;
+      _velocity.x = -_velocity.x.abs();
+    }
+
+    if (position.y < minY) {
+      position.y = minY;
+      _velocity.y = _velocity.y.abs();
+    } else if (position.y > maxY) {
+      position.y = maxY;
+      _velocity.y = -_velocity.y.abs();
+    }
+  }
 
   @override
   void onTapDown(TapDownEvent event) {

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
@@ -23,9 +24,15 @@ class StarGame extends FlameGame {
   int _nextExpected = 1;
   int _nextSpawnNumber = AppSizes.starGameInitialCount + 1;
   int _score = 0;
-  double _timeLeft = AppSizes.starGameStartTimeSec;
+  double _elapsedTime = 0.0;
+  int _difficultyLevel = 0;
   bool _isStarted = false;
   bool _isGameOver = false;
+  Rect _playArea = Rect.zero;
+
+  static const double _baseStarSpeed = 45.0;
+  static const double _speedGainPerLevel = 22.0;
+  static const double _maxStarSpeed = 190.0;
 
   int get score => _score;
 
@@ -38,7 +45,7 @@ class StarGame extends FlameGame {
       AppAssets.gameStarFlame,
     ]);
     final sprite = await loadSprite(AppAssets.gameBackground2Flame);
-    final timerSprite = await loadSprite(
+    final scoreBgSprite = await loadSprite(
       AppAssets.gameTimerBackgroundStarFlame,
     );
     _background = SpriteComponent(sprite: sprite, size: size, priority: -1000)
@@ -47,13 +54,11 @@ class StarGame extends FlameGame {
     _hud = StarHud(
       textSize: AppSizes.starGameHudTextSize,
       padding: AppSizes.starGameHudPadding,
-      spacing: AppSizes.starGameHudSpacing,
-      timerSprite: timerSprite,
-      maxTime: AppSizes.starGameStartTimeSec,
+      timerSprite: scoreBgSprite,
     );
     add(_hud);
     overlays.add('start');
-    _hud.updateValues(0, 0);
+    _hud.updateValues(0);
   }
 
   @override
@@ -65,6 +70,8 @@ class StarGame extends FlameGame {
     _background!
       ..size = size
       ..position = Vector2.zero();
+    _playArea = _buildPlayArea();
+    _updateStarDifficulty();
   }
 
   @override
@@ -73,11 +80,49 @@ class StarGame extends FlameGame {
     if (!_isStarted || _isGameOver) {
       return;
     }
-    _timeLeft = (_timeLeft - dt).clamp(0.0, double.infinity);
-    if (_timeLeft <= 0) {
-      _endGame();
+    _elapsedTime += dt;
+    final nextLevel = (_elapsedTime / AppSizes.starGameStartTimeSec).floor();
+    if (nextLevel != _difficultyLevel) {
+      _difficultyLevel = nextLevel;
+      _updateStarDifficulty();
     }
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
+  }
+
+  Rect _buildPlayArea() {
+    final scale = math.min(
+      size.x / AppSizes.designWidth,
+      size.y / AppSizes.designHeight,
+    );
+    final leftPad = AppSizes.starGameSpawnSidePadding * scale;
+    final rightPad = AppSizes.starGameSpawnSidePadding * scale;
+    final topPad = AppSizes.starGameSpawnTopPadding * scale;
+    final bottomPad = AppSizes.starGameSpawnBottomPadding * scale;
+    return Rect.fromLTRB(
+      leftPad,
+      topPad,
+      size.x - rightPad,
+      size.y - bottomPad,
+    );
+  }
+
+  double _currentStarSpeed() {
+    final speed = _baseStarSpeed + (_speedGainPerLevel * _difficultyLevel);
+    return speed.clamp(_baseStarSpeed, _maxStarSpeed);
+  }
+
+  void _updateStarDifficulty() {
+    final speed = _currentStarSpeed();
+    for (final star in children.whereType<StarComponent>()) {
+      star
+        ..setMovement(velocity: _randomVelocity(speed), bounds: _playArea)
+        ..setSpeed(speed);
+    }
+  }
+
+  Vector2 _randomVelocity(double speed) {
+    final angle = _random.nextDouble() * (math.pi * 2);
+    return Vector2(math.cos(angle) * speed, math.sin(angle) * speed);
   }
 
   void _spawnInitialStars() {
@@ -93,15 +138,10 @@ class StarGame extends FlameGame {
     );
     final diameter = AppSizes.starGameStarDiameter * scale;
     final textSize = AppSizes.starGameNumberTextSize * scale;
-    final leftPad = AppSizes.starGameSpawnSidePadding * scale;
-    final rightPad = AppSizes.starGameSpawnSidePadding * scale;
-    final topPad = AppSizes.starGameSpawnTopPadding * scale;
-    final bottomPad = AppSizes.starGameSpawnBottomPadding * scale;
-
-    final minX = leftPad + (diameter / 2);
-    final maxX = size.x - rightPad - (diameter / 2);
-    final minY = topPad + (diameter / 2);
-    final maxY = size.y - bottomPad - (diameter / 2);
+    final minX = _playArea.left + (diameter / 2);
+    final maxX = _playArea.right - (diameter / 2);
+    final minY = _playArea.top + (diameter / 2);
+    final maxY = _playArea.bottom - (diameter / 2);
 
     final safeMinX = math.min(minX, maxX);
     final safeMaxX = math.max(minX, maxX);
@@ -119,6 +159,10 @@ class StarGame extends FlameGame {
             onTap: () => _handleStarTap(number),
           )
           ..position = Vector2(x, y)
+          ..setMovement(
+            velocity: _randomVelocity(_currentStarSpeed()),
+            bounds: _playArea,
+          )
           ..priority = -number;
 
     add(star);
@@ -139,8 +183,7 @@ class StarGame extends FlameGame {
     );
     star.removeFromParent();
 
-    _score += 1;
-    _timeLeft += AppSizes.starGameAddTimeSec;
+    _score += 2;
     _nextExpected += 1;
 
     _spawnStar(_nextSpawnNumber);
@@ -174,10 +217,12 @@ class StarGame extends FlameGame {
     _nextExpected = 1;
     _nextSpawnNumber = AppSizes.starGameInitialCount + 1;
     _score = 0;
-    _timeLeft = AppSizes.starGameStartTimeSec;
+    _elapsedTime = 0.0;
+    _difficultyLevel = 0;
     _isGameOver = false;
+    _playArea = _buildPlayArea();
     _spawnInitialStars();
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
   }
 
   void _clearStars() {

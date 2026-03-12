@@ -22,6 +22,7 @@ class ChewGame extends FlameGame {
 
   final _random = math.Random();
   final List<ChewItemComponent> _items = <ChewItemComponent>[];
+  final List<_ChewBlindBox> _blindBoxes = <_ChewBlindBox>[];
   final Map<ChewType, ChewDirection> _directionMap =
       <ChewType, ChewDirection>{};
   final Map<ChewType, ChewButtonComponent> _buttons =
@@ -30,7 +31,10 @@ class ChewGame extends FlameGame {
   SpriteComponent? _background;
   late final ChewHud _hud;
 
-  double _timeLeft = AppSizes.chewGameStartTimeSec;
+  double _elapsedTime = 0.0;
+  int _difficultyLevel = 0;
+  int _lastBlindSpawnLevel = 0;
+  int _hitsToClearBlindBoxes = 0;
   int _score = 0;
   bool _isStarted = false;
   bool _isGameOver = false;
@@ -55,7 +59,7 @@ class ChewGame extends FlameGame {
     ]);
 
     final backgroundSprite = await loadSprite(AppAssets.gameBackground3Flame);
-    final timerSprite = await loadSprite(
+    final scoreBgSprite = await loadSprite(
       AppAssets.gameTimerBackgroundChewFlame,
     );
     _background = SpriteComponent(
@@ -70,8 +74,7 @@ class ChewGame extends FlameGame {
     _hud = ChewHud(
       textSize: AppSizes.chewGameHudTextSize,
       padding: AppSizes.chewGameHudPadding,
-      timerSprite: timerSprite,
-      maxTime: AppSizes.chewGameStartTimeSec,
+      timerSprite: scoreBgSprite,
     );
     add(_hud);
 
@@ -80,7 +83,7 @@ class ChewGame extends FlameGame {
     _createInitialItems();
     _layoutAll();
     overlays.add('chewStart');
-    _hud.updateValues(0, 0);
+    _hud.updateValues(0);
   }
 
   @override
@@ -100,11 +103,24 @@ class ChewGame extends FlameGame {
     if (!_isStarted || _isGameOver) {
       return;
     }
-    _timeLeft = (_timeLeft - dt).clamp(0.0, double.infinity);
-    if (_timeLeft <= 0) {
-      _endGame();
+    _elapsedTime += dt;
+    final nextLevel = (_elapsedTime / AppSizes.chewGameStartTimeSec).floor();
+    if (nextLevel != _difficultyLevel) {
+      _difficultyLevel = nextLevel;
+      _applyDifficulty();
     }
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
+  }
+
+  void _applyDifficulty() {
+    if (_difficultyLevel <= 0) {
+      return;
+    }
+    if (_lastBlindSpawnLevel >= _difficultyLevel || _blindBoxes.isNotEmpty) {
+      return;
+    }
+    _spawnBlindBoxes();
+    _lastBlindSpawnLevel = _difficultyLevel;
   }
 
   void _assignDirections() {
@@ -152,6 +168,61 @@ class ChewGame extends FlameGame {
     }
     _layoutItems();
     _layoutButtons();
+    _layoutBlindBoxes();
+  }
+
+  void _spawnBlindBoxes() {
+    _clearBlindBoxes();
+    _hitsToClearBlindBoxes = 5;
+    final blindBox = _ChewBlindBox();
+    _blindBoxes.add(blindBox);
+    add(blindBox);
+    _layoutBlindBoxes();
+  }
+
+  void _layoutBlindBoxes() {
+    if (_blindBoxes.isEmpty) {
+      return;
+    }
+    final scale = math.min(
+      size.x / AppSizes.designWidth,
+      size.y / AppSizes.designHeight,
+    );
+    final topPad = AppSizes.chewGameTopPadding * scale;
+    final bottomPad = AppSizes.chewGameBottomPadding * scale;
+    final maxItemSize = AppSizes.chewGameItemMaxSize * scale;
+    final areaHeight = size.y - topPad - bottomPad;
+    final yMin = topPad + (areaHeight * AppSizes.chewGameRowTopFactor);
+    final yMax = topPad + (areaHeight * AppSizes.chewGameRowBottomFactor);
+    final centerX = size.x / 2;
+    final horizontalMargin = 14.0 * scale;
+
+    final left = centerX - (maxItemSize / 2) - horizontalMargin;
+    final right = centerX + (maxItemSize / 2) + horizontalMargin;
+    final top = yMin - (maxItemSize / 2);
+    final bottom = yMax + (maxItemSize / 2);
+
+    final boxX = left.clamp(0.0, size.x).toDouble();
+    final boxY = top.clamp(0.0, size.y).toDouble();
+    final boxRight = right.clamp(0.0, size.x).toDouble();
+    final boxBottom = bottom.clamp(0.0, size.y).toDouble();
+    final boxWidth = math.max(0.0, boxRight - boxX);
+    final boxHeight = math.max(0.0, boxBottom - boxY);
+
+    for (final box in _blindBoxes) {
+      box
+        ..size = Vector2(boxWidth, boxHeight)
+        ..position = Vector2(boxX, boxY)
+        ..priority = 500;
+    }
+  }
+
+  void _clearBlindBoxes() {
+    for (final box in _blindBoxes) {
+      box.removeFromParent();
+    }
+    _blindBoxes.clear();
+    _hitsToClearBlindBoxes = 0;
   }
 
   void _layoutItems() {
@@ -256,8 +327,13 @@ class ChewGame extends FlameGame {
       return;
     }
 
-    _score += 1;
-    _timeLeft += AppSizes.chewGameAddTimeSec;
+    _score += 2;
+    if (_hitsToClearBlindBoxes > 0) {
+      _hitsToClearBlindBoxes -= 1;
+      if (_hitsToClearBlindBoxes <= 0) {
+        _clearBlindBoxes();
+      }
+    }
 
     current.removeFromParent();
     _items.removeLast();
@@ -295,10 +371,27 @@ class ChewGame extends FlameGame {
     _items.clear();
     _assignDirections();
     _createInitialItems();
-    _timeLeft = AppSizes.chewGameStartTimeSec;
+    _clearBlindBoxes();
+    _elapsedTime = 0.0;
+    _difficultyLevel = 0;
+    _lastBlindSpawnLevel = 0;
     _score = 0;
     _isGameOver = false;
     _layoutAll();
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
+  }
+}
+
+class _ChewBlindBox extends PositionComponent {
+  _ChewBlindBox() : super(anchor: Anchor.topLeft);
+
+  final Paint _paint = Paint()..color = const Color(0xFF000000);
+
+  @override
+  void render(Canvas canvas) {
+    if (size.x <= 0 || size.y <= 0) {
+      return;
+    }
+    canvas.drawRect(Offset.zero & Size(size.x, size.y), _paint);
   }
 }

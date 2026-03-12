@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flame/collisions.dart';
@@ -66,14 +67,18 @@ class FlappyPillarPair extends PositionComponent with HasGameRef<FlappyGame> {
     required this.topGapY,
     required this.pillarSprite,
     required this.speed,
+    required this.oscillationAmplitude,
+    required this.oscillationFrequency,
+    required this.oscillationPhase,
   }) {
     size = Vector2(pillarSize.x, pillarSize.y * 2 + gap);
+    _currentTopGapY = topGapY;
     _top = FlappyPillar(sprite: pillarSprite, flipped: true)
       ..size = pillarSize
-      ..position = Vector2(0, topGapY);
+      ..position = Vector2(0, _currentTopGapY);
     _bottom = FlappyPillar(sprite: pillarSprite, flipped: false)
       ..size = pillarSize
-      ..position = Vector2(0, topGapY + gap);
+      ..position = Vector2(0, _currentTopGapY + gap);
     addAll([_top, _bottom]);
   }
 
@@ -81,17 +86,36 @@ class FlappyPillarPair extends PositionComponent with HasGameRef<FlappyGame> {
   final double gap;
   final double topGapY;
   final Sprite pillarSprite;
-  final double speed;
+  final double oscillationAmplitude;
+  final double oscillationFrequency;
+  final double oscillationPhase;
+
+  double speed;
 
   late final FlappyPillar _top;
   late final FlappyPillar _bottom;
   bool _scored = false;
+  double _elapsed = 0.0;
+  double _currentTopGapY = 0.0;
+
+  void setSpeed(double value) {
+    speed = value;
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
     if (!gameRef.isRunning) {
       return;
+    }
+    _elapsed += dt;
+    if (oscillationAmplitude > 0 && oscillationFrequency > 0) {
+      final wave = math.sin(
+        ((_elapsed * oscillationFrequency) + oscillationPhase) * math.pi * 2,
+      );
+      _currentTopGapY = topGapY + (wave * oscillationAmplitude);
+      _top.position.y = _currentTopGapY;
+      _bottom.position.y = _currentTopGapY + gap;
     }
     position.x -= speed * dt;
     if (position.x + pillarSize.x < 0) {

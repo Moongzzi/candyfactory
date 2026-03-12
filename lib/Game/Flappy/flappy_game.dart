@@ -25,15 +25,17 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
 
   bool _isStarted = false;
   bool _isGameOver = false;
-  bool _timerStarted = false;
   int _score = 0;
-  double _timeLeft = AppSizes.flappyGameStartTimeSec;
+  double _elapsedTime = 0.0;
+  int _difficultyLevel = 0;
   double _spawnTimer = 0.0;
 
   double _scale = 1.0;
   double _gravity = 0.0;
   double _jumpImpulse = 0.0;
+  double _pillarBaseSpeed = 0.0;
   double _pillarSpeed = 0.0;
+  double _spawnBaseInterval = 0.0;
   double _pillarGap = 0.0;
   double _topPadding = 0.0;
   double _bottomPadding = 0.0;
@@ -43,6 +45,13 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
   double _playerStartX = 0.0;
   double _playerStartY = 0.0;
   double _pillarMinHeight = 0.0;
+
+  static const double _speedGainPerLevel = 24.0;
+  static const double _spawnIntervalDropPerLevel = 0.14;
+  static const double _minSpawnInterval = 0.75;
+  static const double _pillarWaveAmplitudeFactor = 0.2;
+  static const double _pillarWaveFrequencyBase = 0.26;
+  static const double _pillarWaveFrequencyGain = 0.05;
 
   int get score => _score;
 
@@ -62,7 +71,7 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     ]);
 
     final backgroundSprite = await loadSprite(AppAssets.gameBackground4Flame);
-    final timerSprite = await loadSprite(
+    final scoreBgSprite = await loadSprite(
       AppAssets.gameTimerBackgroundFlappyFlame,
     );
     _background = SpriteComponent(
@@ -76,8 +85,7 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     _hud = FlappyHud(
       textSize: AppSizes.flappyHudTextSize,
       padding: AppSizes.flappyHudPadding,
-      timerSprite: timerSprite,
-      maxTime: AppSizes.flappyGameStartTimeSec,
+      timerSprite: scoreBgSprite,
     );
     add(_hud);
 
@@ -88,7 +96,7 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     add(_player!);
 
     overlays.add('flappyStart');
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
   }
 
   @override
@@ -100,13 +108,15 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     );
     _gravity = AppSizes.flappyGravity * _scale;
     _jumpImpulse = AppSizes.flappyJumpImpulse * _scale;
-    _pillarSpeed = AppSizes.flappyPillarSpeed * _scale;
+    _pillarBaseSpeed = AppSizes.flappyPillarSpeed * _scale;
+    _pillarSpeed = _pillarBaseSpeed;
     _pillarGap = AppSizes.flappyPillarGap * _scale;
     _topPadding = AppSizes.flappyTopPadding * _scale;
     _bottomPadding = AppSizes.flappyBottomPadding * _scale;
     _floorPadding = AppSizes.flappyFloorPadding * _scale;
     _playerSize = AppSizes.flappyPlayerSize * _scale;
-    _spawnInterval = AppSizes.flappySpawnInterval;
+    _spawnBaseInterval = AppSizes.flappySpawnInterval;
+    _spawnInterval = _spawnBaseInterval;
     _playerStartX = size.x * AppSizes.flappyPlayerStartX;
     _playerStartY = size.y * AppSizes.flappyPlayerStartY;
     _pillarMinHeight = AppSizes.flappyPillarMinHeight * _scale;
@@ -162,22 +172,26 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
         continue;
       }
       if (pillar.checkScore(playerX)) {
-        _score += 3;
-      }
-      if (!_timerStarted && pillar.position.x <= size.x) {
-        _timerStarted = true;
+        _score += 6;
       }
     }
 
-    if (_timerStarted) {
-      _timeLeft = (_timeLeft - dt).clamp(0.0, double.infinity);
-      if (_timeLeft <= 0) {
-        _endGame();
-        return;
-      }
+    _elapsedTime += dt;
+    final nextLevel = (_elapsedTime / AppSizes.flappyGameStartTimeSec).floor();
+    if (nextLevel != _difficultyLevel) {
+      _difficultyLevel = nextLevel;
+      _applyDifficulty();
     }
 
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
+  }
+
+  void _applyDifficulty() {
+    _pillarSpeed = _pillarBaseSpeed + (_difficultyLevel * _speedGainPerLevel * _scale);
+    _spawnInterval = (_spawnBaseInterval - (_difficultyLevel * _spawnIntervalDropPerLevel)).clamp(_minSpawnInterval, _spawnBaseInterval).toDouble();
+    for (final pillar in _pillars) {
+      pillar.setSpeed(_pillarSpeed);
+    }
   }
 
   @override
@@ -219,15 +233,17 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     _pillars.clear();
     _spawnTimer = AppSizes.flappySpawnInterval - AppSizes.flappyFirstSpawnDelay;
     _score = 0;
-    _timeLeft = AppSizes.flappyGameStartTimeSec;
-    _timerStarted = false;
+    _elapsedTime = 0.0;
+    _difficultyLevel = 0;
     _isGameOver = false;
+    _spawnInterval = _spawnBaseInterval;
+    _pillarSpeed = _pillarBaseSpeed;
 
     _player?.reset(
       position: Vector2(_playerStartX, _playerStartY),
       size: _playerSize,
     );
-    _hud.updateValues(_timeLeft, _score);
+    _hud.updateValues(_score);
   }
 
   void _endGame() {
@@ -252,12 +268,23 @@ class FlappyGame extends FlameGame with HasCollisionDetection, TapCallbacks {
     }
     final pillarSprite = Sprite(images.fromCache(AppAssets.flappyPillarFlame));
     final pillarSize = pillarSprite.srcSize.clone();
+    final maxTopGapY = size.y - _bottomPadding - _pillarGap - _pillarMinHeight;
+    final upRoom = topHeight - _pillarMinHeight;
+    final downRoom =
+      (maxTopGapY - (_topPadding + topHeight)).clamp(0.0, double.infinity).toDouble();
+    final amplitude = math.min(
+      _pillarGap * _pillarWaveAmplitudeFactor,
+      math.min(upRoom, downRoom),
+    );
     final pair = FlappyPillarPair(
       pillarSize: pillarSize,
       gap: _pillarGap,
       topGapY: _topPadding + topHeight,
       pillarSprite: pillarSprite,
       speed: _pillarSpeed,
+      oscillationAmplitude: amplitude,
+      oscillationFrequency: _pillarWaveFrequencyBase + (_difficultyLevel * _pillarWaveFrequencyGain),
+      oscillationPhase: _random.nextDouble(),
     )..position = Vector2(size.x + pillarSize.x, 0);
 
     _pillars.add(pair);
